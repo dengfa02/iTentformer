@@ -12,10 +12,9 @@ file.
 **Update**: The code should be directly runnable with Python 3.x. The older versions of Python are no longer supported.
 Scipy error may be displayed during runtime, just update it to the latest version (e.g. 1.11.2).
 
-The dataset folder of this repository provides two original trajectories 245539000_ori and 410050325_ori as examples,
-which are in different seas.
+The dataset folder of this repository provides a example_bohai dataset.
 
 ## Usage
 
-To run GSVD algorithm on the task, one only need to run `GSVD_test.py`. You can also set the hyperparameters you want in
+To run algorithm on the task, one only need to run `iTentformer.py`. You can also set the hyperparameters you want in
 the main function of this .py file. 
