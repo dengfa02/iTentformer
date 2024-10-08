@@ -55,7 +55,6 @@ class Chomp1d(nn.Module):
     def forward(self, x):
         return x[:, :, :-self.chomp_size].contiguous()  # 在前向传播方法中，
         # 从输入张量x的末尾移除self.chomp_size个元素，并使用.contiguous()方法确保返回的张量是连续的。
-        # 这个操作通常用于调整卷积操作的输出大小，以便与下游网络或任务的要求相匹配。
 
 
 class TemporalBlock(nn.Module):
@@ -120,27 +119,18 @@ class PositionalEncoding(nn.Module):
         super(PositionalEncoding, self).__init__()
         self.dropout = nn.Dropout(p=dropout)
 
-        # 初始化Shape为(max_len, d_model)的PE
         pe = torch.zeros(max_len, d_model)
-        # 初始化一个tensor [[0], [1], [2], [3], ...]
         position = torch.arange(0, max_len).unsqueeze(1)
-        # 这里就是sin和cos括号中的内容，通过e和ln进行了变换
         div_term = torch.exp(torch.arange(0, d_model, 2) * -(torch.log(torch.tensor(10000.0)) / d_model))
-        # 计算PE(pos, 2i)
         pe[:, 0::2] = torch.sin(position * div_term)
-        # 计算PE(pos, 2i+1)
         pe[:, 1::2] = torch.cos(position * div_term)
-        # 为了方便计算，在最外面在unsqueeze出一个batch
         pe = pe.unsqueeze(0)
-        # 如果一个参数不参与梯度下降，但又希望保存model的时候将其保存下来
-        # 这个时候就可以用register_buffer
         self.register_buffer("pe", pe)
 
     def forward(self, x):
         """
-        x 为embedding后的inputs，例如(1,7, 128)，batch size为1,7个单词，单词维度为128
+        x为embedding后的inputs
         """
-        # 将x和positional encoding相加。
         x = x + self.pe[:, :x.size(1)].requires_grad_(False)
         return self.dropout(x)
 
@@ -150,16 +140,13 @@ class TCN(nn.Module):
         super(TCN, self).__init__()
         self.tcn = TemporalConvNet(input_size_tcn, num_channels, kernel_size, dropout=dropout)
         self.linear_intent = nn.Linear(num_channels[-1], local_intent_size)
-        # self.sig = nn.Sigmoid()
 
     def forward(self, x):
-        # x needs to have dimension (B, C, L) in order to be passed into CNN
         output = self.tcn(x.transpose(1, 2)).transpose(1, 2)
-        # output = output[:, -1, :]
         return output
 
 
-class FusionBlock(nn.Module):  # concat+点积注意力
+class FusionBlock(nn.Module):
     def __init__(self, d_model, input_length, dropout):
         super(FusionBlock, self).__init__()
         self.embedding = nn.Linear(input_length, d_model)
@@ -177,8 +164,8 @@ class FusionBlock(nn.Module):  # concat+点积注意力
 
 
     def forward(self, x):
-        x = x.transpose(1, 2)  # 16*40*10
-        x = self.embedding(x)  # 16*40*128
+        x = x.transpose(1, 2)
+        x = self.embedding(x)
 
         batch_size = x.size(0)
         seq_len = x.size(1)
@@ -193,7 +180,7 @@ class FusionBlock(nn.Module):  # concat+点积注意力
 
         attn_weights = torch.matmul(q, k.permute(0, 1, 3, 2)) / torch.sqrt(
             torch.tensor(self.d_model, dtype=torch.float))
-        attn_weights = F.softmax(attn_weights, dim=-1)  # 查看归一化权重
+        attn_weights = F.softmax(attn_weights, dim=-1)
         att_values = torch.matmul(attn_weights, v)
 
         att_values = att_values.permute(0, 2, 1, 3).contiguous().view(batch_size, seq_len, -1)
@@ -208,13 +195,9 @@ class TrajModel(nn.Module):
         super(TrajModel, self).__init__()
         self.Fusion = FusionBlock(d_model, input_length, dropout)
         self.input_embedding = nn.Linear(input_dim, d_model)
-        # self.output_embedding = nn.Linear(output_dim, d_model)
         self.concat_linear = nn.Linear(concat_dim * 10, output_dim * 10)
         self.fc = nn.Linear(d_model, 10)
         self.fc2 = nn.Linear(d_model, 10)
-
-        # self.fc3 = nn.Linear(40, output_dim)
-        # self.relu = nn.ReLU()
 
         self.encoder_layer = nn.TransformerEncoderLayer(d_model=d_model, nhead=4, dim_feedforward=512,
                                                         batch_first=True, dropout=dropout, activation='relu')
@@ -225,12 +208,8 @@ class TrajModel(nn.Module):
         self.predictor = nn.Linear(d_model, output_dim)
 
     def forward(self, src, intent):
-        # 对src和tgt进行编码
         src = self.input_embedding(src).cuda()
-        # tgt = self.output_embedding(tgt).cuda()
-        # 给src和tgt的token增加位置信息
         src = self.positional_encoding(src).cuda()
-        # tgt = self.positional_encoding(tgt).cuda()
 
         encode = self.encoder(src, src_key_padding_mask=None)  # 16*8*128
         encode = self.fc(encode)  # 16*8*10
@@ -242,20 +221,7 @@ class TrajModel(nn.Module):
         memory_cat = self.concat_linear(memory_cat)  # 16*400->16*40
         out = memory_cat.reshape(memory_cat.size(0), 10, -1)
 
-        """
-        这里直接返回transformer的结果。因为训练和推理时的行为不一样，
-        所以在该模型外再进行线性层的预测。
-        """
         return out, attn_weights
-
-    @staticmethod
-    def get_key_padding_mask(tokens):
-        """
-        用于key_padding_mask
-        """
-        key_padding_mask = torch.zeros(tokens.size())
-        key_padding_mask[tokens == 2] = -torch.inf
-        return key_padding_mask
 
 
 class IntentFlowNet(nn.Module):
@@ -265,17 +231,10 @@ class IntentFlowNet(nn.Module):
         super(IntentFlowNet, self).__init__()
         self.TCN = TCN(input_size_tcn, local_intent_size, num_channels, kernel_size, dropout=dropout)
         self.TrajModel = TrajModel(input_size, d_model, output_size, concat_dim, input_length, dropout)
-        # self.predictor = nn.Linear(d_model, output_size)
-        """
-        这里直接返回transformer的结果。因为训练和推理时的行为不一样，
-        所以在该模型外再进行线性层的预测。
-        """
 
     def forward(self, delta, src):
         intent = self.TCN(delta)
-        out, attn_weights = self.TrajModel(src.transpose(1, 2), intent)
-        # intent = intent.reshape(intent.size(0), -1)
+        out, _ = self.TrajModel(src.transpose(1, 2), intent)
         out_intent = self.TCN.linear_intent(intent)
-        # out_intent = out_intent.reshape(out_intent.size(0), 10, -1)
 
-        return out_intent, out, attn_weights
+        return out_intent, out
