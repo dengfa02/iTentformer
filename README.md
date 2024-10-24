@@ -1,7 +1,7 @@
 # iTentformer: Observe the Distributional Differences in Short-Term Historical Behaviors
 
 This repository contains the algorithm done in the
-work [Vessel Trajectory Prediction in Intersection Waterways by Observing the Distributional Differences of Short-Term Historical Behaviors](https://github.com/dengfa02/iTentformer)
+work [Trend-Enhanced Variate Transformer for Vessel Trajectory Prediction by Exploiting Short-Term Behavior Distribution Differences at Intersections](https://github.com/dengfa02/iTentformer)
 by Chuiyi Deng et al.
 
 The core steps of iTentformer algorithm for the training and testing of trajectory prediction are listed in the
