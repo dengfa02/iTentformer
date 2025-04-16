@@ -9,10 +9,8 @@ file. If you find this paper inspiring, please cite the following format:
 ```
 @article{deng2025trend,
   title={Trend-Enhanced Variate Transformer for Vessel Trajectory Prediction by Exploiting Short-Term Behavior Distribution Differences at Intersections},
-  author={Deng, Chuiyi and Wang, Shuangxin and Li, Junwei and Liu, Jingyi and Li, Hongrui and others},
+  author={Deng, Chuiyi and Wang, Shuangxin and Li, Junwei and Liu, Jingyi and Li, Hongrui and Zhao, Zhuoyi and Guo, Yanyin and Song, Mingli},
   journal={IEEE Transactions on Instrumentation and Measurement},
-  volume={xxx},
-  pages={xxx},
   year={2025},
   publisher={IEEE}
 }
